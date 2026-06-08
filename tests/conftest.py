@@ -5,6 +5,7 @@ import pytest
 import pytest_asyncio
 from httpx2 import ASGITransport, AsyncClient
 
+from src.chatbot import QAChatbot
 from src.database import apply_migrations, get_db
 from src.main import app
 
@@ -73,3 +74,14 @@ def session_with_messages(
     db_connection.commit()
 
     return session_id
+
+
+@pytest.fixture
+def chatbot(
+    db_connection,
+    session_id,
+):
+    return QAChatbot(
+        chat_session_id=session_id,
+        db_connection=db_connection,
+    )
