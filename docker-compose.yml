@@ -1,0 +1,12 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile-dev
+    volumes:
+      - ./src:/opt/app/src
+      - ./data:/opt/app/data
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env

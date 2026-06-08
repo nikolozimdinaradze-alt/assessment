@@ -1,0 +1,25 @@
+FROM python:3.13
+
+ENV PYTHONUNBUFFERED=1
+
+RUN mkdir -p /opt/app
+WORKDIR /opt/app
+
+COPY --from=ghcr.io/astral-sh/uv:0.11.19 /uv /uvx /bin/
+
+COPY . /opt/app/
+
+RUN uv sync --locked
+
+RUN useradd -ms /bin/bash assessment
+RUN chown -R assessment:assessment /opt/app
+
+ADD scripts/docker-entrypoint-dev.sh /home/assessment/docker-entrypoint-dev.sh
+
+RUN chmod +x /home/assessment/docker-entrypoint-dev.sh
+
+USER assessment
+
+EXPOSE 8000
+
+ENTRYPOINT ["/home/assessment/docker-entrypoint-dev.sh"]

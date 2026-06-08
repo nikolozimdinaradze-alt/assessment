@@ -1,0 +1,52 @@
+Authentication Testing Strategy
+
+Login Page
+
+Verify successful login with valid credentials.
+
+Verify login fails with:
+- Invalid username
+- Invalid password
+- Empty username
+- Empty password
+- Both fields empty
+
+Verify validation messages are displayed correctly.
+
+Verify password field masks entered characters.
+
+Verify the user can submit the form using the Enter key.
+
+Verify login is not possible with a disabled account.
+
+Verify login is not possible with a locked account.
+
+Verify session creation after successful authentication.
+
+Verify user is redirected to the dashboard after login.
+
+Verify unauthorized users cannot access protected pages.
+
+Logout
+
+Verify logout terminates the active session.
+
+Verify browser back navigation does not restore access to protected pages after logout.
+
+Password Reset
+
+Verify password reset email is sent.
+
+Verify reset tokens expire correctly.
+
+Verify expired or invalid reset links are rejected.
+
+Security
+
+Verify protection against brute force attacks.
+
+Verify session identifiers are unique.
+
+Verify sensitive data is never exposed in URLs.
+
+Verify authentication cookies are secure and HttpOnly.
