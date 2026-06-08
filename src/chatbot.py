@@ -1,3 +1,4 @@
+import json
 import logging
 import sqlite3
 from pathlib import Path
@@ -48,7 +49,7 @@ class QAChatbot:
             content=message,
         )
         logger.info(f"Retrieving knowledge base of user, message: {message}")
-        knowledge_base = self._retrieve_related_knowledge_base(
+        knowledge_base = await self._retrieve_related_knowledge_base(
             message,
         )
         logger.info(f"Retrieving conversation history session {self.chat_session_id}.")
@@ -81,7 +82,7 @@ class QAChatbot:
             messages.append(
                 {
                     "role": "system",
-                    "content": (f"Knowledge Base:\n\n{knowledge_base}"),
+                    "content": f"Knowledge Base:\n\n{knowledge_base}",
                 }
             )
 
@@ -90,7 +91,7 @@ class QAChatbot:
         logger.info("Waiting for openai response ...")
         response = await self.openai_client.responses.create(
             model="gpt-5-mini",
-            input=messages,
+            input=messages, # noqa
         )
         logger.info(f"Openai response received for session {self.chat_session_id}.")
 
@@ -154,25 +155,75 @@ class QAChatbot:
             for row in reversed(rows)
         ]
 
-    def _retrieve_related_knowledge_base(
+    async def _retrieve_related_knowledge_base(
         self,
         message: str,
     ) -> str:
         available_files = self._retrieve_file_titles()
 
-        message_words = {word.lower() for word in message.split() if len(word) > 2}
+        if not available_files:
+            return ""
 
-        contexts: list[str] = []
+        response = await self.openai_client.responses.create(
+            model="gpt-5-mini",
+            input=[  # noqa
+                {
+                    "role": "system",
+                    "content": f"""
+                You are a knowledge-base file selector.
+            
+                Given a user query and available knowledge-base files,
+                select up to {settings.KNOWLEDGE_BASE_FILES_LIMIT} files
+                that are most likely to contain the answer.
+            
+                Return ONLY a JSON array of file names.
+            
+                Example:
+                ["profile_page_tests.txt", "main_page_tests.txt"]
+            
+                If no files are relevant return:
+                []
+                """,
+                },
+                {
+                    "role": "user",
+                    "content": f"""
+                User query:
+                {message}
+            
+                Available files:
+                {chr(10).join(available_files)}
+                """,
+                },
+            ],
+        )
 
-        for filename in available_files:
-            content = self._retrieve_file_context(
-                filename,
+        try:
+            selected_files = json.loads(response.output_text)
+        except json.JSONDecodeError:
+            logger.warning(
+                "Failed to parse file selection response: %s",
+                response.output_text,
             )
+            return ""
 
-            content_lower = content.lower()
+        selected_files = [filename for filename in selected_files if filename in available_files]
+        if len(selected_files) > settings.KNOWLEDGE_BASE_FILES_LIMIT:
+            logger.warning(
+                f"knowledge-base file selector retrieved more than limit of file number, retrieved {len(selected_files)} files."
+            )
+            logger.info(f"Reducing file number to keep in limit of {settings.KNOWLEDGE_BASE_FILES_LIMIT}.")
+            selected_files = selected_files[: settings.KNOWLEDGE_BASE_FILES_LIMIT]
+        logger.info(
+            "Selected knowledge-base files: %s",
+            selected_files,
+        )
 
-            if any(word in content_lower for word in message_words):
-                contexts.append(f"=== {filename} ===\n{content}")
+        contexts = []
+
+        for filename in selected_files:
+            content = self._retrieve_file_context(filename)
+            contexts.append(f"=== {filename} ===\n{content}")
 
         return "\n\n".join(contexts)
 

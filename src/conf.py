@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     KNOWLEDGE_BASE_DIR: str = "knowledge"
 
     CONVERSATION_HISTORY_LIMIT: int = 20
+    KNOWLEDGE_BASE_FILES_LIMIT: int = 2
 
     model_config = SettingsConfigDict(
         env_file=".env",
