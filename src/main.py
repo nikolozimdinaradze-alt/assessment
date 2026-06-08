@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 
-from src import __version__
+from src.__version__ import __version__
 from src.chatbot import QAChatbot
 from src.conf import settings
 from src.database import apply_migrations, get_db
@@ -18,7 +18,9 @@ from src.schemas import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ARG001
-    apply_migrations(settings.DB_URI)
+    connection = sqlite3.connect(settings.DB_URI)
+    apply_migrations(connection)
+    connection.close()
     yield
 
 

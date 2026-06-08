@@ -11,36 +11,30 @@ logger = logging.getLogger(__name__)
 MIGRATIONS_DIR = Path("migrations")
 
 
-def apply_migrations(db_uri: str) -> None:
-    connection = sqlite3.connect(db_uri)
+def apply_migrations(connection: sqlite3.Connection) -> None:
+    current_version = connection.execute("PRAGMA user_version").fetchone()[0]
 
-    try:
-        current_version = connection.execute("PRAGMA user_version").fetchone()[0]
+    migrations = sorted(MIGRATIONS_DIR.glob("*.sql"))
 
-        migrations = sorted(MIGRATIONS_DIR.glob("*.sql"))
+    logger.info("Current schema version: %s", current_version)
 
-        logger.info("Current schema version: %s", current_version)
+    for version, migration in enumerate(migrations, start=1):
+        if version <= current_version:
+            logger.info("Migration already applied: %s", migration)
+            continue
 
-        for version, migration in enumerate(migrations, start=1):
-            if version <= current_version:
-                logger.info("Migration already applied: %s", migration)
-                continue
+        logger.info("Applying migration %s", migration.name)
 
-            logger.info("Applying migration %s", migration.name)
+        try:
+            with connection:
+                connection.executescript(migration.read_text())
+                connection.execute(f"PRAGMA user_version = {version}")
 
-            try:
-                with connection:
-                    connection.executescript(migration.read_text())
-                    connection.execute(f"PRAGMA user_version = {version}")
+        except Exception:
+            logger.exception("Failed to apply migration %s", migration.name)
+            sys.exit(1)
 
-            except Exception:
-                logger.exception("Failed to apply migration %s", migration.name)
-                sys.exit(1)
-
-        logger.info("Migrations completed")
-
-    finally:
-        connection.close()
+    logger.info("Migrations completed")
 
 
 def get_db() -> Generator[sqlite3.Connection, None, None]:
